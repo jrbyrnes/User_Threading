@@ -74,11 +74,19 @@ structs
 
 ***********************/
 
+struct statistics
+{
+    int nRuns;
+    time_t runTime, waitTime, sleepTime;
+    time_t rTimeStart, rTimeEnd;
+};
+
 struct TCB
 {
     char stack[STACK_SIZE];
     address_t sp, pc;
-    int tid, state; 
+    int tid, state;
+    struct statistics stats;
 };
 
 
@@ -239,7 +247,7 @@ struct TCB curr;
 struct TCB next;
 struct TCB thrArr[MAX_THREADS]; //uncomment for thrArr
 struct linkedList readyQueue;
-enum State{Running = 0, Waiting = 1, Asleep = 2, Done = 3};
+enum State{Running = 0, Ready = 1, Asleep = 2, Done = 3};
 struct itimerval timer;
 
 
@@ -261,7 +269,7 @@ void dispatch()
         addToEnd(curr, &readyQueue);
     }
 
-    curr.state = Waiting;
+    curr.state = Ready;
     curr = next;
     
     /*
@@ -382,7 +390,7 @@ int createThread(void (*fPtr)(void))
     threadNode.sp = (address_t)threadNode.stack + STACK_SIZE - sizeof(address_t);
     threadNode.pc = (address_t)fPtr;
     threadNode.tid = n;
-    threadNode.state = Waiting;
+    threadNode.state = Ready;
     thrArr[n] = threadNode; //uncomment for thrArr
     addToEnd(threadNode, &readyQueue);
 
