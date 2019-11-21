@@ -108,6 +108,10 @@ int createThread(void (*fPtr)(void));
 int getMyID(void);
 void sleepThread(int);
 void unsleep(int);
+int getStatus(int, struct statistics *);
+void go(void);
+void initiateThreads(int);
+void cleanup(void);
 
 
 
@@ -150,7 +154,7 @@ struct linkedList createList()
     myList.totalWeight = 0;
 
     return myList;
-};
+}
 
 
 
@@ -286,6 +290,10 @@ enum State{Running = 0, Ready = 1, Asleep = 2, Done = 3};
 struct itimerval timer;
 int schedule;
 int sleeping = 0; //flag to determine whether or not to put thread to sleep
+struct statistics* thrStatus;
+sigjmp_buf mainbuf;
+int xyz = 0;
+
 
 
 
@@ -385,9 +393,11 @@ void dispatch()
     stateTransition(Running);
     if (curr.tid == 0)
     {
-        printf("\n\nthread 0 runtime: %lf\n", curr.stats.runTime);
+        getStatus(0, thrStatus);
+        /*printf("\n\nthread 0 runtime: %lf\n", curr.stats.runTime);
         printf("thread 0 waittime: %lf\n", curr.stats.waitTime);
         printf("thread 0 sleeptime: %lf\n", curr.stats.sleepTime);
+        */
     }
 
     siglongjmp(jbuf[curr.tid],1);
@@ -420,8 +430,9 @@ void g( void )
 {
     //printf("My ID is: %d\n", GetMyID()); 
     int i=0;
-
-    //CleanUp(); //for test
+    ++xyz;
+    if (xyz == 5)
+        cleanup(); //for test
     while(1)
     {
         ++i;
@@ -435,6 +446,8 @@ void g( void )
         while(j<99995555) 
             j++;
     }
+
+
 }
 
 void h( void )
@@ -454,6 +467,11 @@ void h( void )
         int j;
         while(j<99995555) j++;
     }
+}
+
+void getThreadResult()
+{
+    ;
 }
 
 
@@ -545,6 +563,105 @@ int getMyID()
     return curr.tid;
 }
 
+int getStatus(int id, struct statistics *tempStat)
+{
+    struct TCB temp = thrArr[id];
+    tempStat = &temp.stats;
+
+    printf("\nSummary Statistics for thread %d\n", temp.tid);
+    printf("Total Run Time:      %15lf\n", temp.stats.runTime);
+    printf("Number of Times Ran: %8d\n", temp.stats.nRuns);
+    printf("Total Wait Time:     %15lf\n", temp.stats.waitTime);
+    printf("Average Wait Time:   %15lf\n\n\n", temp.stats.avgWait);
+
+    return temp.tid;
+}
+
+
+void initiateThreads(int nThreads)
+{
+    readyQueue = createList();
+    sleepQueue = createList();
+
+    if (schedule == 1)
+    {
+        printf("The weights are: \n\n");
+    }
+
+    for (int i = 0; i < nThreads; i++)
+    {
+        createThread(f);
+    }
+
+    for (int i = 0; i < nThreads; i++)
+    {
+        createThread(g);
+    }
+
+        for (int i = 0; i < nThreads; i++)
+    {
+        createThread(h);
+    }
+
+}
+
+void go()
+{
+    signal(SIGVTALRM, dispatch);
+    signal(SIGALRM, unsleep);
+    
+    timer.it_value.tv_sec = 2;
+    timer.it_value.tv_usec = 0;
+    timer.it_interval.tv_sec = 2;
+    timer.it_interval.tv_usec = 0; 
+
+    setitimer(ITIMER_VIRTUAL, &timer, NULL);
+
+
+    dispatch();
+}
+
+void cleanup()
+{
+    //print summary statistics for each node
+    //if further analys
+
+    stateTransition(Ready);
+    for (int i = 0; i < n; i++)
+    {
+        getStatus(i, thrStatus);
+    }
+
+
+    //turn off timer (shut down scheduling)
+    timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = 0;
+    timer.it_interval.tv_sec = 0;
+    timer.it_interval.tv_usec = 0; 
+
+    setitimer(ITIMER_VIRTUAL, &timer, NULL);
+
+    /*
+    node deletion:
+    Note: 1 copy kept in the queues (on heap), and another kept in stack
+    in thrArr. I can free the nodes of the queues, but can not free the 
+    nodes in the array. However, when main returns, the stack will be deleted.
+    Main will return shortly after cleaning up the heap.
+    */
+
+    free(sleepQueue.tail);
+    free(sleepQueue.head);
+    free(readyQueue.tail);
+    free(readyQueue.head);
+
+
+    printf("\n\nAll clean -- exiting\n\n");
+
+    siglongjmp(mainbuf,1);
+
+
+}
+
 
 /************************
 main
@@ -552,6 +669,8 @@ main
 ************************/
 int main()
 {
+    int jumpval;
+
     do
     {
         printf("Please enter 0 for Round Robin, 1 for Lottery: \n");
@@ -565,48 +684,16 @@ int main()
 
     numThreads /= 3;
 
-    //most of this stuff should be in go()
-    readyQueue = createList();
-    sleepQueue = createList();
-
-    if (schedule == 1)
-    {
-        printf("The weights are: \n\n");
-    }
-
-    for (int i = 0; i < numThreads; i++)
-    {
-        createThread(f);
-    }
-
-    for (int i = 0; i < numThreads; i++)
-    {
-        createThread(g);
-    }
-
-        for (int i = 0; i < numThreads; i++)
-    {
-        createThread(h);
-    }
-
-
-
-
-
-    signal(SIGVTALRM, dispatch);
-    signal(SIGALRM, unsleep);
     
-    timer.it_value.tv_sec = 2;
-    timer.it_value.tv_usec = 0;
-    timer.it_interval.tv_sec = 2;
-    timer.it_interval.tv_usec = 0; 
+    initiateThreads(numThreads);
 
-    setitimer(ITIMER_VIRTUAL, &timer, NULL);
+    jumpval = sigsetjmp(mainbuf,1);
 
-
-    dispatch();
+    if (jumpval == 0)
+        go();
     
-    return 0;
+    else
+        return 0;
 }
 
 
