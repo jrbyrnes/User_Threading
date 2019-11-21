@@ -79,7 +79,7 @@ struct statistics
 {
     int nRuns, nWaits, nSleeps;
     double runTime, waitTime, sleepTime;
-    struct timeval timeStart, timeEnd;
+    time_t timeStart, timeEnd;
     double avgRun, avgWait, avgSleep;
 };
 
@@ -108,7 +108,7 @@ API --
 
 struct listNode
 {
-    struct TCB x;
+    struct TCB *x;
     struct listNode *next;
 };
 
@@ -133,14 +133,14 @@ struct linkedList createList()
 
 
 
-void createHead(struct TCB y, struct linkedList* list)
+void createHead(struct TCB *y, struct linkedList* list)
 {
     list->head->x = y;
     list->head->next = list->tail;
     ++list->size;
 }
 
-struct listNode * add(struct TCB y, struct linkedList* list)
+struct listNode * add(struct TCB *y, struct linkedList* list)
 {
     /*
     must initialize tail->next in order to use struct returned
@@ -153,7 +153,7 @@ struct listNode * add(struct TCB y, struct linkedList* list)
 
 }
 
-void addToEnd(struct TCB y, struct linkedList* list)
+void addToEnd(struct TCB *y, struct linkedList* list)
 {
     if (list->size == 0)
     {
@@ -167,7 +167,7 @@ void addToEnd(struct TCB y, struct linkedList* list)
     }
 }
 
-struct TCB pop(struct linkedList* list)
+struct TCB* pop(struct linkedList* list)
 {
     /*
     extract necessary info from head then
@@ -176,7 +176,7 @@ struct TCB pop(struct linkedList* list)
 
     struct listNode *temp = list->head;
     list->head = list->head->next;
-    struct TCB y = temp->x;
+    struct TCB *y = temp->x;
     //free(temp);
 
     --list->size;
@@ -189,48 +189,45 @@ void traverse(struct linkedList* list)
     struct listNode *temp = list->head;
     for (int i = 0; i < list->size; i++)
     {
-        printf("%d\n", temp->x.tid);
+        printf("%d\n", temp->x->tid);
         temp = temp->next;
     }
 
 
 }
 
-struct TCB popN(int n, struct linkedList* list)
+struct TCB* popN(int n, struct linkedList* list)
 {
-    if (n == 0)
+    int i = 0;
+
+    if (n-- > list->size)
     {
-        return pop(list);
+        printf("List only has %d elements, %d requested", list->size, n);
     }
 
-    else
+    struct listNode *temp = list->head;
+    struct listNode *prev = list->head;
+    
+    while (temp->x->tid)
     {
-    
-        struct TCB ret;
-        if (n > list->size)
+        if (i == n)
         {
-            printf("List only has %d elements, %d requested", list->size, n);
+            //printf("requested element found with element # %d \n", temp->x);
+            break;
         }
-    
-        struct listNode *temp = list->head;
-        struct listNode *prev = list->head;
-        
-    
-        for (int i = 0; i < n; i++)
-        {
-            prev = temp;
-            temp = temp->next;
-        }
-    
-    
-        ret = temp->x;
-    
-        //node structuring & accounting
-        prev->next = temp->next;
-        --list->size;
-    
-        return ret;
+        prev = temp;
+        temp = temp->next;
+        ++i;
     }
+
+    struct TCB *ret = temp->x;
+
+    //node structuring & accounting
+    prev->next = temp->next;
+    free(temp);
+    --list->size;
+
+    return ret;
 
 }
 
@@ -248,14 +245,12 @@ globals
 
 sigjmp_buf jbuf[MAX_THREADS];
 int n = 0;
-struct TCB curr;
-struct TCB next;
+struct TCB *curr;
+struct TCB *next;
 struct TCB thrArr[MAX_THREADS]; //uncomment for thrArr
 struct linkedList readyQueue;
 enum State{Running = 0, Ready = 1, Asleep = 2, Done = 3};
 struct itimerval timer;
-int schedule;
-
 
 
 
@@ -268,74 +263,51 @@ functions
 
 void stateTransition(int newState)
 {
-    gettimeofday(&curr.stats.timeEnd, NULL);
-    double window = (double) (curr.stats.timeEnd.tv_usec - curr.stats.timeStart.tv_usec) / 1000000 + (double)(curr.stats.timeEnd.tv_sec - curr.stats.timeStart.tv_sec);
+    curr->stats.timeEnd = time(NULL);
+    double window = difftime(curr->stats.timeEnd, curr->stats.timeStart);
 
-    //printf("\n\n%f\n", window);
+    //printf("thread id %d leaving state %d\n", curr->tid, curr->state);
+    //printf("spent %f time in this state\n", window);
 
-    switch(curr.state)
+    switch(curr->state)
     {
         case 0:
-            ++curr.stats.nRuns;
-            curr.stats.runTime += window;
-            curr.stats.avgRun = curr.stats.runTime / curr.stats.nRuns;
+            ++curr->stats.nRuns;
+            curr->stats.runTime += window;
+            curr->stats.avgRun = curr->stats.runTime / curr->stats.nRuns;
+            printf("made it here\n");
             break;
         case 1:
-            ++curr.stats.nWaits;
-            curr.stats.waitTime += window;
-            curr.stats.avgWait = curr.stats.waitTime / curr.stats.nWaits;
+            ++curr->stats.nWaits;
+            curr->stats.waitTime += window;
+            curr->stats.avgWait = curr->stats.waitTime / curr->stats.nWaits;
             break;
         case 2:
-            ++curr.stats.nSleeps;
-            curr.stats.sleepTime += window;
-            curr.stats.avgSleep = curr.stats.sleepTime / curr.stats.nSleeps;
+            ++curr->stats.nSleeps;
+            curr->stats.sleepTime += window;
+            curr->stats.avgSleep = curr->stats.sleepTime / curr->stats.nSleeps;
             break;
         default:
             break;
     }
 
-    curr.state = newState;
-    gettimeofday(&curr.stats.timeStart, NULL);
-}
-
-
-struct TCB scheduler(int sched)
-{
-    struct TCB popped;
-    if (sched == 0)
-    {
-        return pop(&readyQueue);
-    }
-    
-    else
-    {
-        srand(time(NULL));
-        int r = rand() % getSize(&readyQueue);
-        int n = getSize(&readyQueue);
-        popped = popN(r, &readyQueue);
-        return popped;
-        
-    }
-
+    curr->state = newState;
+    curr->stats.timeStart = time(NULL);
 }
 
 
 void dispatch()
 {
-    next = scheduler(schedule);
-
-    stateTransition(Ready);
+    next = pop(&readyQueue);
 
     //in the first run of dispatch, curr will be null
-    if (curr.sp)
+    if (curr->sp)
     {
         addToEnd(curr, &readyQueue);
-        thrArr[curr.tid] = curr;
     }
 
-
+    stateTransition(Ready);
     curr = next;
-
     
     /*
     int ret_val = sigsetjmp(jbuf[x],1);
@@ -345,12 +317,12 @@ void dispatch()
     }
     */
     
-    int x = curr.tid;
-    stateTransition(Running);
+    int x = curr->tid;
+    printf("switching to thread %d\n", curr->tid);
+    stateTransition(Running); 
     if (x == 0)
     {
-        printf("\n\nthread 0 runtime: %lf\n", curr.stats.runTime);
-        printf("thread 0 waittime: %lf\n", curr.stats.waitTime);
+        printf("%f\n", curr->stats.waitTime);
     }
     siglongjmp(jbuf[x],1);
 }
@@ -408,17 +380,13 @@ void f( void ) {
     //printf("My ID is: %d\n", GetMyID()); 
     int i=0;
 
-    while(1) 
-    {
+    while(1) {
         ++i;
-        if (i % 99999555 == 0) 
-        {
-            printf("f: switching\n");
-            dispatch();
+        if (i % 99999555 == 0) {
+      printf("f: switching\n");
         }
-
-        int j;
-        while(j<99995555) j++;
+    int j;
+    while(j<99995555) j++;
     }
 }
 
@@ -428,18 +396,13 @@ void g( void )
     int i=0;
 
     //CleanUp(); //for test
-    while(1)
-    {
+    while(1){
         ++i;
-        if (i % 99999555 == 0) 
-        {
-            printf("g: switching\n");
-            dispatch();
+        if (i % 99999555 == 0) {
+       printf("g: switching\n");
         }
-
-        int j;
-        while(j<99995555) 
-            j++;
+    int j;
+        while(j<99995555) j++;
     }
 }
 
@@ -448,16 +411,12 @@ void h( void )
     //printf("My ID is: %d\n", GetMyID()); 
     int i=0;
 
-    while(1)
-    {
+    while(1){
         ++i;
-        if (i % 99999555 == 0) 
-        {
+        if (i % 99999555 == 0) {
            printf("h: switching\n");
-           dispatch();
         }
-    
-        int j;
+    int j;
         while(j<99995555) j++;
     }
 }
@@ -474,20 +433,14 @@ int createThread(void (*fPtr)(void))
     threadNode.pc = (address_t)fPtr;
     threadNode.tid = n;
     thrArr[n] = threadNode; //uncomment for thrArr
-    
+    addToEnd(&threadNode, &readyQueue);
 
     threadNode.stats.runTime = 0;
     threadNode.stats.waitTime = 0;
     threadNode.stats.sleepTime = 0;
-    threadNode.stats.nRuns = 0;
-    threadNode.stats.nWaits = 0;
-    threadNode.stats.nSleeps = 0;
-    gettimeofday(&threadNode.stats.timeStart, NULL);
+    threadNode.stats.timeStart = time(NULL);
 
     threadNode.state = Ready;
-
-    addToEnd(threadNode, &readyQueue);
-    thrArr[n] = threadNode;
 
 
     sigsetjmp(jbuf[threadNode.tid],1);
@@ -508,14 +461,9 @@ main
 ************************/
 int main()
 {
-    do
-    {
-        printf("Please enter 0 for Round Robin, 1 for Lottery: \n");
-        scanf("%d", &schedule);
-    } while (schedule != 0 && schedule != 1);
-    
-
     readyQueue = createList();
+    curr = (struct TCB *)malloc(sizeof(struct TCB));
+    next = (struct TCB *)malloc(sizeof(struct TCB));
 
     createThread(f);        
     createThread(g);
