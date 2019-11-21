@@ -89,6 +89,7 @@ struct TCB
     address_t sp, pc;
     int tid, state;
     struct statistics stats;
+    int weight;
 };
 
 
@@ -107,6 +108,7 @@ int createThread(void (*fPtr)(void));
 int getMyID(void);
 void sleepThread(int);
 void unsleep(int);
+
 
 
 
@@ -132,6 +134,7 @@ struct listNode
 struct linkedList
 {
     int size;
+    int totalWeight;
     struct listNode* head;
     struct listNode* tail;
 };
@@ -144,6 +147,7 @@ struct linkedList createList()
     myList.head = (struct listNode *)malloc(sizeof(struct listNode));
     myList.tail = (struct listNode *)malloc(sizeof(struct listNode));
     myList.size = 0;
+    myList.totalWeight = 0;
 
     return myList;
 };
@@ -181,6 +185,7 @@ void addToEnd(struct TCB y, struct linkedList* list)
     {
         list->tail = add(y, list);
         ++list->size;
+        list->totalWeight += y.weight;
     }
 }
 
@@ -220,7 +225,8 @@ void traverse(struct linkedList* list)
 
 struct TCB popN(int n, struct linkedList* list)
 {
-    if (n == 0)
+    int runningWeight = 0;
+    if (n <= list->head->x.weight)
     {
         return pop(list);
     }
@@ -229,19 +235,20 @@ struct TCB popN(int n, struct linkedList* list)
     {
     
         struct TCB ret;
-        if (n > list->size)
+        if (n > list->totalWeight)
         {
-            printf("List only has %d elements, %d requested", list->size, n);
+            printf("Random value %d, total weight %d", n, list->totalWeight);
         }
     
         struct listNode *temp = list->head;
         struct listNode *prev = list->head;
         
     
-        for (int i = 0; i < n; i++)
+        while (n > (runningWeight + temp->x.weight))
         {
             prev = temp;
             temp = temp->next;
+            runningWeight += temp->x.weight;
         }
     
     
@@ -388,6 +395,7 @@ void dispatch()
 
 
 void f( void ) {
+
     //printf("My ID is: %d\n", GetMyID()); 
     int i=0;
 
@@ -396,8 +404,11 @@ void f( void ) {
         ++i;
         if (i % 99999555 == 0) 
         {
-            printf("f: sleeping\n");
-            sleepThread(2);
+            //printf("f: sleeping\n");
+            //sleepThread(2);
+
+            printf("f: switching\n");
+            dispatch();
         }
 
         int j;
@@ -494,7 +505,16 @@ int createThread(void (*fPtr)(void))
     threadNode.sp = (address_t)threadNode.stack + STACK_SIZE - sizeof(address_t);
     threadNode.pc = (address_t)fPtr;
     threadNode.tid = n;
-    thrArr[n] = threadNode; //uncomment for thrArr
+    if (schedule == 0)
+        threadNode.weight = 0;
+
+    else
+    {
+
+        threadNode.weight = (rand() % 100) + 1; 
+        printf("Thread %d has weight %d\n", threadNode.tid, threadNode.weight);  
+    }
+
     
 
     threadNode.stats.runTime = 0;
@@ -538,15 +558,39 @@ int main()
         scanf("%d", &schedule);
     } while (schedule != 0 && schedule != 1);
     
+    int numThreads;
+
+    printf("Please enter number of threads: (multiple of three)\n");
+    scanf("%d", &numThreads);
+
+    numThreads /= 3;
 
     //most of this stuff should be in go()
     readyQueue = createList();
     sleepQueue = createList();
 
+    if (schedule == 1)
+    {
+        printf("The weights are: \n\n");
+    }
 
-    createThread(f);         
-    createThread(g);
-    createThread(h);
+    for (int i = 0; i < numThreads; i++)
+    {
+        createThread(f);
+    }
+
+    for (int i = 0; i < numThreads; i++)
+    {
+        createThread(g);
+    }
+
+        for (int i = 0; i < numThreads; i++)
+    {
+        createThread(h);
+    }
+
+
+
 
 
     signal(SIGVTALRM, dispatch);
