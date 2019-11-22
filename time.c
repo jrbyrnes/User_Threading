@@ -3,22 +3,49 @@
 #include <sys/time.h>
 #include <unistd.h>
 
+int n;
+
+void f(void);
+void g(void);
 
 void timer_handle()
 {
-	sleep(1);
+
+  n++;
+
+  if (n % 2 == 0)
+  {
+    f();
+  }
+
+  else if (n % 2 == 1)
+  {
+    g();
+  }
 }
 
 void f()
 {
-	for (int i = 0; i < 5000000; i++)
+	for (int i = 0; i < 1000000; i++)
 	{
 		printf("%d\n",i);
 	}
+
+  return;
+}
+
+void g()
+{
+  while (1)
+  {
+    sleep(1);
+    printf("in g\n");
+  }
 }
 
 int main()
 {
+  n = 0;
 	struct itimerval timer;
 
 
@@ -36,6 +63,6 @@ int main()
   
   int x = setitimer(ITIMER_VIRTUAL, &timer, NULL);	
 
+  f();
 
-  	f();
 }

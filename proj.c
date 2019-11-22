@@ -13,8 +13,10 @@ Userspace Threading
 #include <sys/time.h>
 #include <stdlib.h>
 #include <time.h>
+#include <semaphore.h>
 
 #define SECOND 1000000
+#define TIME_QUANTUM 1*SECOND
 #define STACK_SIZE 4096
 #define MAX_THREADS 100
 
@@ -112,6 +114,7 @@ int getStatus(int, struct statistics *);
 void go(void);
 void initiateThreads(int);
 void cleanup(void);
+void getThreadResult(void);
 
 
 
@@ -293,7 +296,7 @@ int sleeping = 0; //flag to determine whether or not to put thread to sleep
 struct statistics* thrStatus;
 sigjmp_buf mainbuf;
 int xyz = 0;
-
+sem_t mutex;
 
 
 
@@ -359,6 +362,9 @@ struct TCB scheduler(int sched)
 
 void dispatch()
 {
+    printf("timer interrupt\n");
+    sem_wait(&mutex);
+    printf("dispatch\n");
 
     next = scheduler(schedule);
     
@@ -391,16 +397,19 @@ void dispatch()
 
     curr = next;
     stateTransition(Running);
-    if (curr.tid == 0)
+    if (curr.tid == 1)
     {
-        getStatus(0, thrStatus);
+        getStatus(1, thrStatus);
         /*printf("\n\nthread 0 runtime: %lf\n", curr.stats.runTime);
         printf("thread 0 waittime: %lf\n", curr.stats.waitTime);
         printf("thread 0 sleeptime: %lf\n", curr.stats.sleepTime);
         */
     }
 
+    sem_post(&mutex);
     siglongjmp(jbuf[curr.tid],1);
+
+
 }
 
 
@@ -471,7 +480,18 @@ void h( void )
 
 void getThreadResult()
 {
-    ;
+    sem_wait(&mutex);
+
+    for (int i = 0; i < 5; i++)
+    {
+        printf("Locked function, iteration %d complete\n", i);
+        sleep(1);
+    }
+
+    printf("Function complete, unlocking\n\n");
+
+    sem_post(&mutex);
+    dispatch();
 }
 
 
@@ -568,11 +588,28 @@ int getStatus(int id, struct statistics *tempStat)
     struct TCB temp = thrArr[id];
     tempStat = &temp.stats;
 
-    printf("\nSummary Statistics for thread %d\n", temp.tid);
-    printf("Total Run Time:      %15lf\n", temp.stats.runTime);
+    printf("\nSummary Statistics thread:  %d\n", temp.tid);
+    printf("Thread currently in state: ");
+    switch(temp.state)
+    {
+        case 0:
+            printf(" Running\n");
+            break;
+        case 1:
+            printf(" Waiting\n");
+            break;
+        case 2:
+            printf(" Sleeping\n");
+            break;
+        default:
+            break;
+    }
+
     printf("Number of Times Ran: %8d\n", temp.stats.nRuns);
-    printf("Total Wait Time:     %15lf\n", temp.stats.waitTime);
-    printf("Average Wait Time:   %15lf\n\n\n", temp.stats.avgWait);
+    printf("Total Run Time:      %15lf\n", temp.stats.runTime);
+    printf("Total Sleep Time:    %15lf\n", temp.stats.sleepTime);
+    printf("Average Wait Time:   %15lf\n", temp.stats.avgWait);
+    printf("Average Run Time:    %15lf\n\n\n", temp.stats.avgRun);
 
     return temp.tid;
 }
@@ -588,6 +625,7 @@ void initiateThreads(int nThreads)
         printf("The weights are: \n\n");
     }
 
+    
     for (int i = 0; i < nThreads; i++)
     {
         createThread(f);
@@ -602,6 +640,14 @@ void initiateThreads(int nThreads)
     {
         createThread(h);
     }
+    
+
+    /*
+    createThread(getThreadResult);
+    createThread(f);
+    createThread(g);
+    */
+
 
 }
 
@@ -610,12 +656,14 @@ void go()
     signal(SIGVTALRM, dispatch);
     signal(SIGALRM, unsleep);
     
-    timer.it_value.tv_sec = 2;
-    timer.it_value.tv_usec = 0;
-    timer.it_interval.tv_sec = 2;
-    timer.it_interval.tv_usec = 0; 
+    timer.it_value.tv_sec = 0;
+    timer.it_value.tv_usec = TIME_QUANTUM;
+    timer.it_interval.tv_sec = 0;
+    timer.it_interval.tv_usec = TIME_QUANTUM; 
 
     setitimer(ITIMER_VIRTUAL, &timer, NULL);
+
+    sem_init(&mutex, 0, 1);
 
 
     dispatch();
@@ -679,8 +727,10 @@ int main()
     
     int numThreads;
 
+    
     printf("Please enter number of threads: (multiple of three)\n");
     scanf("%d", &numThreads);
+
 
     numThreads /= 3;
 
