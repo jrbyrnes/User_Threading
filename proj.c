@@ -15,7 +15,7 @@ Userspace Threading
 #include <time.h>
 #include <semaphore.h>
 
-#define SECOND 500000
+#define SECOND 750000
 #define TIME_QUANTUM 1*SECOND
 #define STACK_SIZE 4096
 #define MAX_THREADS 100
@@ -300,6 +300,7 @@ struct linkedList sleepQueue;
 enum State{Running = 0, Ready = 1, Asleep = 2, Done = 3};
 struct itimerval timer;
 int schedule;
+int randomThreads;
 int sleeping = 0; //flag to determine whether or not to put thread to sleep
 struct statistics* thrStatus;
 sigjmp_buf mainbuf;
@@ -362,6 +363,7 @@ struct TCB scheduler(int sched)
     {
         srand(time(NULL));
         int r = rand() % readyQueue.totalWeight;
+        printf("Randomly picked %d\n",r);
         popped = popN(r, &readyQueue);
         return popped;      
     }
@@ -572,9 +574,21 @@ int createThread(void (*fPtr)(void))
 
     else
     {
+        if (randomThreads == 1)
+        {
+            threadNode.weight = (rand() % 100) + 1;
+            printf("Thread %d has weight %d\n", threadNode.tid, threadNode.weight);  
+        }
 
-        threadNode.weight = (rand() % 100) + 1; 
-        printf("Thread %d has weight %d\n", threadNode.tid, threadNode.weight);  
+        else
+        {
+            do
+            {
+                printf("Enter weight for thread %d: ", threadNode.tid);
+                scanf("%d", &threadNode.weight);
+            } while (threadNode.weight < 1 || threadNode.weight > 100);
+        }
+         
     }
 
     
@@ -651,7 +665,7 @@ void initiateThreads(int nThreads, int lockThread)
 
     if (schedule == 1)
     {
-        printf("The weights are: \n\n");
+        printf("\nThe weights are: \n");
     }
 
     
@@ -744,23 +758,33 @@ int main()
 {
     int jumpval;
     int numThreads;
-    int lockThread = 0;
+    int lockThread;
+
 
     do
     {
         printf("Please enter 0 for Round Robin, 1 for Lottery: \n");
         scanf("%d", &schedule);
     } while (schedule != 0 && schedule != 1);
+
+    if (schedule == 1)
+    {
+        do
+        {
+            printf("Randomized Weights (0 for no, 1 for yes): \n");
+            scanf("%d", &randomThreads);
+        } while (randomThreads != 0 && randomThreads != 1);
+    }
     
     do
     {
-        printf("Do you want locked thread demo (1 - yes, 0 - no): \n");
+        printf("Do you want locked thread demo (0 for no, 1 for yes): \n");
         scanf("%d", &lockThread);
     } while (lockThread != 1 && lockThread != 0);
 
     do
     {
-        printf("Please enter number of threads (1, 100 - lockedThread): \n");
+        printf("Please enter number of threads (1 - 100  --including locked thread): \n");
         scanf("%d", &numThreads);
     } while (numThreads < 1 || numThreads > 100);
 
