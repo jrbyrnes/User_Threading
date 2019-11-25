@@ -15,7 +15,7 @@ Userspace Threading
 #include <time.h>
 #include <semaphore.h>
 
-#define SECOND 1000000
+#define SECOND 500000
 #define TIME_QUANTUM 1*SECOND
 #define STACK_SIZE 4096
 #define MAX_THREADS 100
@@ -102,7 +102,7 @@ function definitions
 ***********************/
 void stateTransition(int);
 struct TCB scheduler(int);
-void dispatch(void);
+void dispatch(int);
 void f(void);
 void g(void);
 void h(void);
@@ -112,7 +112,7 @@ void sleepThread(int);
 void unsleep(int);
 int getStatus(int, struct statistics *);
 void go(void);
-void initiateThreads(int);
+void initiateThreads(int, int);
 void cleanup(void);
 void getThreadResult(void);
 
@@ -164,8 +164,10 @@ struct linkedList createList()
 void createHead(struct TCB y, struct linkedList* list)
 {
     list->head->x = y;
+    list->head->next = (struct listNode *)malloc(sizeof(struct listNode));
     list->head->next = list->tail;
     ++list->size;
+    list->totalWeight += y.weight;
 }
 
 struct listNode * add(struct TCB y, struct linkedList* list)
@@ -199,8 +201,7 @@ void addToEnd(struct TCB y, struct linkedList* list)
 struct TCB pop(struct linkedList* list)
 {
     /*
-    extract necessary info from head then
-    free to prevent memory leak
+    extract necessary info from head 
     */
 
     struct listNode *temp = list->head;
@@ -208,12 +209,14 @@ struct TCB pop(struct linkedList* list)
         list->head = list->head->next;
     else
     {
+        //free(list->head);
         list->head = (struct listNode *)malloc(sizeof(struct listNode));
     }
     struct TCB y = temp->x;
     //free(temp);
 
     --list->size;
+    list->totalWeight -= y.weight;
 
     return y;
 }
@@ -254,6 +257,10 @@ struct TCB popN(int n, struct linkedList* list)
         while (n > (runningWeight + temp->x.weight))
         {
             prev = temp;
+            if (!temp->next->x.sp)
+            {
+                break;
+            }
             temp = temp->next;
             runningWeight += temp->x.weight;
         }
@@ -264,6 +271,7 @@ struct TCB popN(int n, struct linkedList* list)
         //node structuring & accounting
         prev->next = temp->next;
         --list->size;
+        list->totalWeight -= ret.weight;
     
         return ret;
     }
@@ -312,7 +320,6 @@ void stateTransition(int newState)
     gettimeofday(&curr.stats.timeEnd, NULL);
     double window = (double) (curr.stats.timeEnd.tv_usec - curr.stats.timeStart.tv_usec) / 1000000 + (double)(curr.stats.timeEnd.tv_sec - curr.stats.timeStart.tv_sec);
 
-
     switch(curr.state)
     {
         case 0:
@@ -337,6 +344,8 @@ void stateTransition(int newState)
     curr.state = newState;
     gettimeofday(&curr.stats.timeStart, NULL);
 
+    thrArr[curr.tid] = curr;
+
 
 }
 
@@ -352,22 +361,19 @@ struct TCB scheduler(int sched)
     else
     {
         srand(time(NULL));
-        int r = rand() % getSize(&readyQueue);
-        int n = getSize(&readyQueue);
+        int r = rand() % readyQueue.totalWeight;
         popped = popN(r, &readyQueue);
         return popped;      
     }
 }
 
 
-void dispatch()
+void dispatch(int signum)
 {
     printf("timer interrupt\n");
     sem_wait(&mutex);
-    printf("dispatch\n");
 
-    next = scheduler(schedule);
-    
+
     if (sleeping == 0)
         stateTransition(Ready);
 
@@ -377,7 +383,6 @@ void dispatch()
     }
 
 
-    //in the first run of dispatch, curr will be null
     if (curr.sp)
     {
         if (sleeping == 0)
@@ -394,12 +399,18 @@ void dispatch()
         }
     }
 
+    next = scheduler(schedule);
+
+
+
+    //in the first run of dispatch, curr will be null
+
 
     curr = next;
     stateTransition(Running);
-    if (curr.tid == 1)
+    if (curr.tid == 0)
     {
-        getStatus(1, thrStatus);
+        getStatus(0, thrStatus);
         /*printf("\n\nthread 0 runtime: %lf\n", curr.stats.runTime);
         printf("thread 0 waittime: %lf\n", curr.stats.waitTime);
         printf("thread 0 sleeptime: %lf\n", curr.stats.sleepTime);
@@ -427,7 +438,7 @@ void f( void ) {
             //sleepThread(2);
 
             printf("f: switching\n");
-            dispatch();
+            //dispatch(0);
         }
 
         int j;
@@ -439,16 +450,26 @@ void g( void )
 {
     //printf("My ID is: %d\n", GetMyID()); 
     int i=0;
+    
+    
     ++xyz;
-    if (xyz == 5)
-        cleanup(); //for test
+    if (xyz == 10)
+    {
+        printf("putting thread %d to sleep --\n", curr.tid);
+        sleepThread(2); //for test
+    }
+
+    if (xyz == 100)
+       cleanup();
+    
+
     while(1)
     {
         ++i;
         if (i % 99999555 == 0) 
         {
             printf("g: switching\n");
-            dispatch();
+            //dispatch(0);
         }
 
         int j;
@@ -470,7 +491,7 @@ void h( void )
         if (i % 99999555 == 0) 
         {
            printf("h: switching\n");
-           dispatch();
+           //dispatch(0);
         }
     
         int j;
@@ -491,15 +512,16 @@ void getThreadResult()
     printf("Function complete, unlocking\n\n");
 
     sem_post(&mutex);
-    dispatch();
+    dispatch(0);
 }
 
 
 void sleepThread(int sec)
 {
     sleeping = 1;
+    signal(SIGALRM, unsleep);
     alarm(sec);
-    dispatch();
+    dispatch(0);
 }
 
 void unsleep(int signum)
@@ -527,10 +549,11 @@ void unsleep(int signum)
     temp.state = Ready;
     gettimeofday(&temp.stats.timeStart, NULL);
 
+
     thrArr[temp.tid] = temp;
     addToEnd(temp, &readyQueue);
     
-    dispatch();
+    dispatch(0);
 }
 
 
@@ -543,6 +566,7 @@ int createThread(void (*fPtr)(void))
     threadNode.sp = (address_t)threadNode.stack + STACK_SIZE - sizeof(address_t);
     threadNode.pc = (address_t)fPtr;
     threadNode.tid = n;
+    //threadNode.stats = (struct stats)malloc(sizeof(struct stats)); //comment out maybe
     if (schedule == 0)
         threadNode.weight = 0;
 
@@ -605,6 +629,11 @@ int getStatus(int id, struct statistics *tempStat)
             break;
     }
 
+    if (schedule == 1)
+    {
+        printf("Weight for Lottery:  %15d\n", temp.weight);    
+    }
+
     printf("Number of Times Ran: %8d\n", temp.stats.nRuns);
     printf("Total Run Time:      %15lf\n", temp.stats.runTime);
     printf("Total Sleep Time:    %15lf\n", temp.stats.sleepTime);
@@ -615,7 +644,7 @@ int getStatus(int id, struct statistics *tempStat)
 }
 
 
-void initiateThreads(int nThreads)
+void initiateThreads(int nThreads, int lockThread)
 {
     readyQueue = createList();
     sleepQueue = createList();
@@ -626,27 +655,23 @@ void initiateThreads(int nThreads)
     }
 
     
-    for (int i = 0; i < nThreads; i++)
-    {
-        createThread(f);
-    }
 
     for (int i = 0; i < nThreads; i++)
     {
-        createThread(g);
-    }
-
-        for (int i = 0; i < nThreads; i++)
-    {
-        createThread(h);
+        if (i % 3 == 0)
+            createThread(f);
+        else if (i % 3 == 1)
+            createThread(g);
+        else
+            createThread(h);
     }
     
+    if (lockThread == 1)
+    {
+        createThread(getThreadResult);
+    }
 
-    /*
-    createThread(getThreadResult);
-    createThread(f);
-    createThread(g);
-    */
+
 
 
 }
@@ -654,7 +679,7 @@ void initiateThreads(int nThreads)
 void go()
 {
     signal(SIGVTALRM, dispatch);
-    signal(SIGALRM, unsleep);
+
     
     timer.it_value.tv_sec = 0;
     timer.it_value.tv_usec = TIME_QUANTUM;
@@ -666,7 +691,7 @@ void go()
     sem_init(&mutex, 0, 1);
 
 
-    dispatch();
+    dispatch(0);
 }
 
 void cleanup()
@@ -718,6 +743,8 @@ main
 int main()
 {
     int jumpval;
+    int numThreads;
+    int lockThread = 0;
 
     do
     {
@@ -725,17 +752,21 @@ int main()
         scanf("%d", &schedule);
     } while (schedule != 0 && schedule != 1);
     
-    int numThreads;
+    do
+    {
+        printf("Do you want locked thread demo (1 - yes, 0 - no): \n");
+        scanf("%d", &lockThread);
+    } while (lockThread != 1 && lockThread != 0);
+
+    do
+    {
+        printf("Please enter number of threads (1, 100 - lockedThread): \n");
+        scanf("%d", &numThreads);
+    } while (numThreads < 1 || numThreads > 100);
 
     
-    printf("Please enter number of threads: (multiple of three)\n");
-    scanf("%d", &numThreads);
-
-
-    numThreads /= 3;
-
+    initiateThreads(numThreads,lockThread);
     
-    initiateThreads(numThreads);
 
     jumpval = sigsetjmp(mainbuf,1);
 
