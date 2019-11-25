@@ -459,7 +459,7 @@ void g( void )
         sleepThread(2); //for test
     }
 
-    if (xyz == 100)
+    if (xyz == 35)
        cleanup();
     
 
@@ -553,7 +553,7 @@ void unsleep(int signum)
     thrArr[temp.tid] = temp;
     addToEnd(temp, &readyQueue);
     
-    dispatch(0);
+
 }
 
 
