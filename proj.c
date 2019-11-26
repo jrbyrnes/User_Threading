@@ -15,7 +15,7 @@ Userspace Threading
 #include <time.h>
 #include <semaphore.h>
 
-#define SECOND 750000
+#define SECOND 500000
 #define TIME_QUANTUM 1*SECOND
 #define STACK_SIZE 4096
 #define MAX_THREADS 100
