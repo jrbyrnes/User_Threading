@@ -361,9 +361,11 @@ struct TCB scheduler(int sched)
     
     else
     {
-        srand(time(NULL));
-        int r = rand() % readyQueue.totalWeight;
-        printf("Randomly picked %d\n",r);
+        //srand is called multiple times per second, generating same numbers
+        //add curr.tid to add a randomization layer
+        srand(time(NULL) + curr.tid);
+        int r = (rand() % readyQueue.totalWeight)+1;
+        //printf("Randomly picked %d\n",r);
         popped = popN(r, &readyQueue);
         return popped;      
     }
@@ -385,6 +387,7 @@ void dispatch(int signum)
     }
 
 
+    //in the first run of dispatch, curr will be null
     if (curr.sp)
     {
         if (sleeping == 0)
@@ -405,19 +408,17 @@ void dispatch(int signum)
 
 
 
-    //in the first run of dispatch, curr will be null
-
 
     curr = next;
     stateTransition(Running);
+
+    //for tracking & debugging
+    /*
     if (curr.tid == 0)
     {
         getStatus(0, thrStatus);
-        /*printf("\n\nthread 0 runtime: %lf\n", curr.stats.runTime);
-        printf("thread 0 waittime: %lf\n", curr.stats.waitTime);
-        printf("thread 0 sleeptime: %lf\n", curr.stats.sleepTime);
-        */
     }
+    */
 
     sem_post(&mutex);
     siglongjmp(jbuf[curr.tid],1);
@@ -440,7 +441,7 @@ void f( void ) {
             //sleepThread(2);
 
             printf("f: switching\n");
-            //dispatch(0);
+            dispatch(0);
         }
 
         int j;
@@ -471,7 +472,7 @@ void g( void )
         if (i % 99999555 == 0) 
         {
             printf("g: switching\n");
-            //dispatch(0);
+            dispatch(0);
         }
 
         int j;
@@ -493,7 +494,7 @@ void h( void )
         if (i % 99999555 == 0) 
         {
            printf("h: switching\n");
-           //dispatch(0);
+           dispatch(0);
         }
     
         int j;
@@ -713,6 +714,10 @@ void cleanup()
     //print summary statistics for each node
     //if further analys
 
+    if (getSize(&sleepQueue))
+    {
+        unsleep(0);
+    }
     stateTransition(Ready);
     for (int i = 0; i < n; i++)
     {
