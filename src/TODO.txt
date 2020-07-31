@@ -1,0 +1,21 @@
+TODO -- 
+
+in main -- use instance
+
+dbug stuff
+	dispatcher singleton for signal handling
+	copy / move etc constructors for thread
+
+
+
+lockthread implementation in dispatcher
+	as opposed to being implemented in function logic itself
+remaining items in refactor.c
+	many globals have been made fields in the dispatcher class
+
+return values/args for threaded functions
+
+
+
+convert the getstats to a logger
+provide api to handle actual functions
