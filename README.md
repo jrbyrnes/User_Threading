@@ -4,7 +4,7 @@ Introducing YAThreadLib!
 
 The purpose of this project is largely selfish. I developed it as a mechanism to understand the internals of multi-threading. Additionally, it serves as an outlet to test features of C++. That said, I do intend to eventually turn this project into a full library that offers a rich API for multi-threading.
 
-As is, the engine splits some user supplied functions into threads. These threads all belong to the same process, and all belong to the same kernel thread, sol, we are therefore computing concurrently -- not in parallel -- with this lirbary.
+As is, the engine splits some user supplied functions into threads. These threads all belong to the same process, and all belong to the same kernel thread, so, we are therefore computing concurrently -- not in parallel -- with this lirbary.
 
 ## Build
 
