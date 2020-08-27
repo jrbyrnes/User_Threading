@@ -8,6 +8,6 @@ As is, the engine splits some user supplied functions into threads. These thread
 
 ## Build
 
-As of now, building is left up to the buildee. If I didn't mention before, the current state of this project is nowhere near production ready. A build note, though: an adress translation is needed for thread context in userspace -- this requires some assembly. As a result, only certain CPU architectures are supported -- currently, 32 and 64 bit x86.
+As of now, building is left up to the builder. If I didn't mention before, the current state of this project is nowhere near production ready. A build note, though: an adress translation is needed for thread context in userspace -- this requires some assembly. As a result, only certain CPU architectures are supported -- currently, 32 and 64 bit x86.
 
 This has been tested on a x86-64 system running Ubuntu. As of now, other systems are not gauranteed to work as they have not been tested.
