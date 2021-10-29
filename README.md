@@ -14,9 +14,11 @@ This has been tested on a x86-64 system running Ubuntu.
 
 To play with the code, clone it, then navigate to the main directory "USER_THREADING". Then
 
-`mkdir build && cd build`
-`cmake ..`
-`make`
+```
+mkdir build && cd build
+cmake ..
+make
+```
 
 If using an x86_64 architecture, an executable "Threading Example" will be created. Running this will demonstrate how the threading library works.
 
