@@ -8,9 +8,17 @@ This project offers an engine to run concurrent threads simultaneously. As seen 
 
 ## Build
 
-As of now, building is left up to the builder (I plan include a build system in the next commit -- that said, if you're onn and x86 system `g++ threading.cpp -lpthread` should get the job done). If I didn't mention before, the current state of this project is nowhere near production ready. A build note, though: an adress translation is needed for thread context in userspace -- this requires some assembly. As a result, only certain CPU architectures are supported -- currently, 32 and 64 bit x86.
+Adress translation is needed to get correct addresses for the functions' stack -- this implies an architecture dependency. Due to limited resources, only certain CPU architectures are supported -- x86_64. Note: the code can easily support 32 bit Intel architectures, however it has not been tested.
 
-This has been tested on a x86-64 system running Ubuntu. As of now, other systems are not gauranteed to work as they have not been tested.
+This has been tested on a x86-64 system running Ubuntu. 
+
+To play with the code, clone it, then navigate to the main directory "USER_THREADING". Then
+
+`mkdir build && cd build`
+`cmake ..`
+`make`
+
+If using an x86_64 architecture, an executable "Threading Example" will be created. Running this will demonstrate how the threading library works.
 
 
 ## Disclaimer
