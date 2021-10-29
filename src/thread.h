@@ -3,8 +3,7 @@
 
 
 
-class statistics
-{
+class statistics {
     public:
     	int nRuns, nWaits, nSleeps;
     	double runTime, waitTime, sleepTime;
@@ -16,20 +15,17 @@ class statistics
     	void printStats(int tid, int state, int weight);
 };
 
-statistics::statistics()
-{
+statistics::statistics() {
 	nRuns = nWaits = nSleeps = 0;
     runTime = waitTime = sleepTime = 0;
     avgRun = avgWait = avgSleep = 0;   
 }
 
-void statistics::setTimeStart()
-{
+void statistics::setTimeStart() {
 	gettimeofday(&timeStart, NULL);
 }
 
-void statistics::setTimeEnd()
-{
+void statistics::setTimeEnd() {
 	gettimeofday(&timeEnd, NULL);
 }
 
@@ -37,8 +33,7 @@ void statistics::setTimeEnd()
 
 ///need thread copy assignment for node
 
-class thread
-{
+class thread {
 	public:
     	char stack[STACK_SIZE];
     	address_t sp, pc;
@@ -52,37 +47,35 @@ class thread
     	void printStats();		
 };
 
-thread::thread()
-{
+thread::thread() {
 	//stack = NULL;
 	sp =  pc = weight =0;
 	tid = state = scheduleType = -1;
 	stats = nullptr;
 }
 
-thread::thread(void (*fPtr)(void), int nextTID, int scheduleType)
-{
+thread::thread(void (*fPtr)(void), int nextTID, int scheduleType) {
 	this->scheduleType = scheduleType; //should be global?
     
     sp = (address_t)stack + STACK_SIZE - sizeof(address_t);
     pc = (address_t)fPtr;
     tid = nextTID;
 
-    if (scheduleType == 0) //equal weights
+    //equal weights
+    if (scheduleType == 0) 
         weight = 0;
 
     else
     {
-        if (scheduleType == 1) //random weights
-        {
+        //random weights
+        if (scheduleType == 1) {
             weight = (rand() % 100) + 1;
             printf("Thread %d has weight %d\n", tid, weight);  
         }
 
-        if (scheduleType == 2) //custom weights
-        {
-            do
-            {
+        //custom weights
+        if (scheduleType == 2)  {
+            do {
                 printf("Enter weight for thread %d (1-100) : ", tid);
                 scanf("%d", &weight);
             } while (weight < 1 || weight > 100);
@@ -98,18 +91,15 @@ thread::thread(void (*fPtr)(void), int nextTID, int scheduleType)
 
 }
 
-int thread::getTid()
-{
+int thread::getTid() {
 	return tid;
 }
 
-void thread::stateTransition(int newState)
-{
+void thread::stateTransition(int newState) {
 	stats->setTimeEnd();
     double window = (double) (stats->timeEnd.tv_usec - stats->timeStart.tv_usec) / 1000000 + (double)(stats->timeEnd.tv_sec - stats->timeStart.tv_sec);
 
-    switch(state)
-    {
+    switch(state) {
         case 0:
             ++stats->nRuns;
             stats->runTime += window;
@@ -133,12 +123,10 @@ void thread::stateTransition(int newState)
     stats->setTimeStart();
 }
 
-void thread::printStats()
-{
+void thread::printStats() {
     printf("\nSummary Statistics thread:  %d\n", tid);
     printf("Thread currently in state: ");
-    switch(state)
-    {
+    switch(state) {
         case 0:
             printf(" Running\n");
             break;
@@ -152,8 +140,7 @@ void thread::printStats()
             break;
     }
 
-    if (scheduleType == 1 || scheduleType == 2)
-    {
+    if (scheduleType == 1 || scheduleType == 2) {
         printf("Weight for Lottery:  %15d\n", weight);    
     }
 

@@ -4,8 +4,7 @@
 #include <iostream>
 #include "node.h"
 
-class linkedList
-{
+class linkedList {
         int size;
         node *head;
         node *tail;
@@ -25,40 +24,33 @@ class linkedList
 };
 
 
-linkedList::linkedList()
-{
+linkedList::linkedList() {
     size = 0;
     head = new node;
     //tail = new node;
 
 }
 
-int linkedList::getSize()
-{
+int linkedList::getSize() {
     return size;
 }
 
-int linkedList::getTotalWeight()
-{
+int linkedList::getTotalWeight() {
 	return totalWeight;
 }
 
-struct node* linkedList::getHead()
-{
+struct node* linkedList::getHead() {
     return head;
 }
 
-void linkedList::addNode(node* newNode)
-{
-    if (!head->value)
-    {
+void linkedList::addNode(node* newNode) {
+    if (!head->value) {
         head->value = newNode->value;
         head->next = new node;
         tail = head->next;
     }
 
-    else
-    {
+    else {
         //std::cout << newNode->value;
         tail->value = newNode->value;
         tail->next = new node;
@@ -78,10 +70,8 @@ void LinkedList::addNode(int val)
     addNode(&newNode);
 }*/
 
-void linkedList::traverse(node* listPosition)
-{
-    while (true)
-    {
+void linkedList::traverse(node* listPosition) {
+    while (true) {
         listPosition->value->printStats();
 
         if (!listPosition->next->value)
@@ -91,17 +81,14 @@ void linkedList::traverse(node* listPosition)
 }
 
 
-struct node* linkedList::pop()
-{
+struct node* linkedList::pop() {
     node* temp = head;
     
-    if (head->next->value)
-    {
+    if (head->next->value) {
         head = head->next;
     }
 
-    else
-    {
+    else {
         head = new node;
     }
     
@@ -111,20 +98,16 @@ struct node* linkedList::pop()
     return temp;
 }
 
-struct node* linkedList::popN(int lotteryPick)
-{
+struct node* linkedList::popN(int lotteryPick) {
 	int runningWeight = 0;
-	if (lotteryPick <= head->value->weight)
-    {
+	if (lotteryPick <= head->value->weight) {
         return pop();
     }
 
-    else
-    {
+    else {
     
         struct node returnNode;
-        if (lotteryPick > totalWeight)
-        {
+        if (lotteryPick > totalWeight) {
             printf("Random value %d, total weight %d", lotteryPick, totalWeight);
         }
     
@@ -132,11 +115,9 @@ struct node* linkedList::popN(int lotteryPick)
         struct node *prev = head;
         
     
-        while (lotteryPick > (runningWeight + temp->value->weight))
-        {
+        while (lotteryPick > (runningWeight + temp->value->weight)) {
             prev = temp;
-            if (!temp->next->value->sp)
-            {
+            if (!temp->next->value->sp) {
                 break;
             }
             temp = temp->next;

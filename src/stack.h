@@ -4,8 +4,7 @@
 #include <iostream>
 #include "node.h"
 
-class stack
-{
+class stack {
             int size;
             node* head;
         
@@ -14,19 +13,17 @@ class stack
             int getSize();
             node* pop();
             void push(node*);
-            void push(int);
+            //void push(int);
 
 
 };
 
-stack::stack()
-{
+stack::stack() {
     size = 0;
     head = new node;
 }
 
-node* stack::pop()
-{
+node* stack::pop() {
     if (size == 0) //exception
     {
         std::cout << "Error: attempt to pop from empty stack";
@@ -41,8 +38,7 @@ node* stack::pop()
     }
 }
 
-void stack::push(node* pushedNode)
-{
+void stack::push(node* pushedNode) {
     ++size;
     node temp = node(pushedNode);
 
@@ -55,6 +51,7 @@ void stack::push(node* pushedNode)
     delete temp.next; //would be called implicitly
 }
 
+/*
 void stack::push(int val)
 {
     node newNode;
@@ -66,7 +63,7 @@ void stack::push(int val)
 
     delete newNode.next; //would be called impllcity
 
-}
+}*/
 
 int stack::getSize()
 {

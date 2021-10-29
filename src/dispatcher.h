@@ -14,8 +14,7 @@
 
 
 
-class dispatcher
-{
+class dispatcher {
 		int n, nThreads, lockThread, scheduleType,  jumpval;//, signum, numFuncs,;
 		int nSwitches;
 		node** threadArr;
@@ -50,8 +49,7 @@ class dispatcher
 
 dispatcher* instance;
 
-dispatcher::dispatcher()
-{
+dispatcher::dispatcher() {
 	n = nThreads = nSwitches = 0;//numFuncs = 0;//signum = 0;
 	lockThread = scheduleType = jumpval = -1;
 	threadArr = nullptr;
@@ -63,8 +61,7 @@ dispatcher::dispatcher()
 	//dispatcher_ = nullptr;
 }
 
-dispatcher::dispatcher(int nThread, int lockThread, int schedule, void (*funPtrArr[])(void), int numFuncs)
-{
+dispatcher::dispatcher(int nThread, int lockThread, int schedule, void (*funPtrArr[])(void), int numFuncs) {
 	n = nSwitches = 0;
 	this->nThreads = nThread;
 	this->lockThread = lockThread;
@@ -89,17 +86,14 @@ dispatcher::dispatcher(int nThread, int lockThread, int schedule, void (*funPtrA
 
 
 
-int dispatcher::assignTID()
-{
+int dispatcher::assignTID() {
 	int temp = n;
 	++n;
 	return(temp);
 }
 
-void dispatcher::initiateThreads(void (*funPtrArr[])(void), int numFuncs)
-{
-	for (int i = 0; i < nThreads; i++)
-	{
+void dispatcher::initiateThreads(void (*funPtrArr[])(void), int numFuncs) {
+	for (int i = 0; i < nThreads; i++) {
 		thread *temp = new thread(funPtrArr[i%numFuncs],assignTID(),scheduleType);
 		node *tempNode = new node(temp);
 
@@ -116,19 +110,14 @@ void dispatcher::initiateThreads(void (*funPtrArr[])(void), int numFuncs)
 }
 
 
-
-
-void dispatcher::sigHandler(int signalType)
-{
-
+void dispatcher::sigHandler(int signalType){
 	instance->switcher(signalType);
 
 }
 
 
 
-int dispatcher::runThreads()
-{
+int dispatcher::runThreads() {
 	signal(SIGVTALRM, dispatcher::sigHandler);
     
     timer.it_value.tv_sec = 0;
@@ -154,18 +143,15 @@ int dispatcher::runThreads()
 }
 
 
-void dispatcher::switcher(int signum)
-{
-	if (signum)
-    {
+void dispatcher::switcher(int signum) {
+	if (signum) {
         printf("timer interrupt\n");
     }
 
 
     ++nSwitches;
 
-    if (nSwitches >= MAX_SWITCHES)
-    {
+    if (nSwitches >= MAX_SWITCHES) {
     	cleanUp();
     }
     
@@ -175,31 +161,27 @@ void dispatcher::switcher(int signum)
     //not sure whats up with the following lines
     //why not put them in the curr->value->sp conditional
     
-    if (curr != nullptr)
-    {
-    	if (true) //sleeping == 0
-    	{
+    if (curr != nullptr) {
+    	if (true)  {
+            //sleeping == 0
         	curr->value->stateTransition(Ready);
         	threadArr[curr->value->tid] = curr;
     	}
 	
-    	else
-    	{
+    	else {
         	curr->value->stateTransition(Asleep);
         	threadArr[curr->value->tid] = curr;
     	}
     }
 
     //in the first run of dispatch, curr will be null
-    if (curr != nullptr)
-    {
-        if (true) //sleeping == 0
-        {
+    if (curr != nullptr) {
+        if (true) {   
+            //sleeping == 0
         	threadList->addNode(curr);    
         }
 
-        else
-        {
+        else {
             sleepList->addNode(curr);
             //sleeping = 0; //reset the flag
         }
@@ -229,16 +211,13 @@ void dispatcher::switcher(int signum)
 }
 
 
-node* dispatcher::scheduler()
-{
+node* dispatcher::scheduler() {
     node *popped;
-    if (scheduleType == 0)
-    {
+    if (scheduleType == 0) {
         return threadList->pop();
     }
     
-    else
-    {
+    else {
         //srand is called multiple times per second, generating same numbers
         //add curr.tid to add a randomization layer
         int r = (rand() % threadList->getTotalWeight())+1;
@@ -250,8 +229,7 @@ node* dispatcher::scheduler()
 }
 
 
-void dispatcher::cleanUp()
-{
+void dispatcher::cleanUp() {
     //print summary statistics for each node
     //if further analys
 
