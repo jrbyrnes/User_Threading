@@ -14,9 +14,7 @@ include_directories(${UTHREAD_SOURCE_DIR}/include)
 
 if (${CUR_ARCH} STREQUAL "x86_64")
 
-    add_executable(ThreadingExample lib/threading.cpp)
-
-    target_link_libraries(ThreadingExample -lpthread)
+add_subdirectory(lib)
 
 else()
 

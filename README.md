@@ -20,7 +20,7 @@ cmake ..
 make
 ```
 
-If using an x86_64 architecture, an executable "Threading Example" will be created. Running this will demonstrate how the threading library works.
+If using an x86_64 architecture, an executable "ThreadingExample" will be created (within `build/lib`). Running this will demonstrate how the threading library works.
 
 
 ## Disclaimer
